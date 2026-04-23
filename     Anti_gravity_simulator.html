@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS - AI Interview Practice</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #030508; --card: #0d1220; --border: rgba(99,179,237,0.1);
+  --accent: #4fc3f7; --accent2: #a78bfa; --accent3: #34d399; --danger: #ef4444; --gold: #f59e0b;
+  --text: #e2e8f0; --text-dim: #64748b;
+  --font-heading: 'Syne', sans-serif; --font-body: 'DM Sans', sans-serif; --font-mono: 'Space Mono', monospace;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--font-body); overflow-x:hidden; cursor:none; min-height: 100vh;}
+
+/* Custom Cursor */
+#cursor { position:fixed; width:12px; height:12px; background:var(--accent); border-radius:50%; pointer-events:none; z-index:99999; mix-blend-mode:screen; }
+#cursor-trail { position:fixed; width:32px; height:32px; border:1px solid rgba(79,195,247,0.3); border-radius:50%; pointer-events:none; z-index:99998; transition:all 0.15s ease; }
+
+/* Canvas Background */
+#bg-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; pointer-events:none; }
+
+/* Layout & Typography */
+h1, h2, h3 { font-family:var(--font-heading); font-weight:800; letter-spacing:-0.02em; }
+.text-mono { font-family:var(--font-mono); font-size: 0.75rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); }
+.text-gradient { background:linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+/* Buttons */
+.btn { position:relative; overflow:hidden; padding:0.75rem 2rem; border-radius:8px; border:none; font-family:var(--font-heading); font-size:0.9rem; font-weight:700; cursor:none; transition:all 0.3s; background:var(--card); color:var(--text); border:1px solid var(--border); }
+.btn:hover { border-color:var(--accent); box-shadow:0 0 20px rgba(79,195,247,0.2); transform:translateY(-2px); }
+.btn.primary { background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#000; border:none; }
+
+/* Cards & Glassmorphism */
+.glass-card { background:rgba(13,18,32,0.6); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:16px; padding:1.5rem; transition:all 0.3s; }
+.glass-card:hover { border-color:rgba(79,195,247,0.2); box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+
+/* Pages */
+.page { display:none; min-height:100vh; padding:80px 2rem 2rem; }
+.page.active { display:flex; flex-direction:column; }
+
+/* Nav */
+nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; background:rgba(3,5,8,0.8); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+.nav-logo { font-size:1.5rem; font-family:var(--font-heading); font-weight:800; }
+.nav-badge { background:rgba(79,195,247,0.1); border:1px solid rgba(79,195,247,0.2); padding:0.25rem 0.75rem; border-radius:100px; color:var(--accent); font-size:0.7rem; display:flex; align-items:center; gap:0.5rem;}
+.nav-badge::before { content:''; width:6px; height:6px; background:var(--accent3); border-radius:50%; animation:pulse-dot 1.5s infinite; }
+
+/* Load Screen */
+#loader { position:fixed; inset:0; background:var(--bg); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.8s; }
+.loader-bar { width:200px; height:2px; background:rgba(255,255,255,0.1); margin:1rem 0; overflow:hidden; }
+.loader-fill { height:100%; width:0%; background:var(--accent); transition:width 0.1s; }
+
+/* Home Grid */
+.role-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; width:100%; max-width:900px; margin:2rem auto; }
+.role-card { cursor:none; text-align:center; padding:2rem 1rem; }
+.role-card.selected { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+
+/* Tokens */
+.pill-group { display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:center; max-width:800px; margin:0 auto 2rem; }
+.pill { padding:0.5rem 1rem; border-radius:100px; border:1px solid var(--border); background:rgba(255,255,255,0.02); cursor:none; font-size:0.8rem; transition:0.2s;}
+.pill.selected { background:rgba(167,139,250,0.1); border-color:var(--accent2); color:var(--accent2); }
+
+/* Interview UI */
+.interview-layout { display:grid; grid-template-columns:300px 1fr 300px; gap:1.5rem; flex:1; max-width:1400px; margin:0 auto; width:100%; }
+
+/* Webcam Simulation */
+.webcam { width:100%; aspect-ratio:4/3; background:#000; border-radius:12px; position:relative; overflow:hidden; border:1px solid var(--border); display:flex; align-items:center; justify-content:center;}
+.webcam-pulse { position:absolute; inset:0; border:2px solid var(--accent); border-radius:12px; animation:webcam-pulse 2s infinite; pointer-events:none;}
+.webcam-scan { position:absolute; top:0; left:0; right:0; height:2px; background:var(--accent3); animation:scan 3s linear infinite; }
+.rec-indicator { position:absolute; top:10px; right:10px; display:flex; align-items:center; gap:0.5rem; color:var(--danger); font-size:0.6rem; font-family:var(--font-mono); }
+.rec-indicator .dot { width:6px; height:6px; background:var(--danger); border-radius:50%; animation:pulse-dot 1s infinite; }
+
+/* Chat */
+.chat-container { display:flex; flex-direction:column; height:calc(100vh - 160px); background:rgba(0,0,0,0.3); border-radius:16px; border:1px solid var(--border); overflow:hidden;}
+.chat-history { flex:1; overflow-y:auto; padding:1.5rem; display:flex; flex-direction:column; gap:1rem; scroll-behavior:smooth;}
+.chat-msg { display:flex; gap:1rem; align-items:flex-start; animation:slide-up 0.3s ease; max-width:85%;}
+.chat-msg.user { align-self:flex-end; flex-direction:row-reverse; }
+.avatar-sm { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#1e293b; border:1px solid var(--border); flex-shrink:0;}
+.msg-bubble { background:rgba(255,255,255,0.03); padding:1rem; border-radius:12px; border:1px solid var(--border); font-size:0.9rem; line-height:1.5; }
+.chat-msg.user .msg-bubble { background:rgba(167,139,250,0.1); border-color:rgba(167,139,250,0.3); }
+
+/* Input */
+.chat-input { padding:1rem; border-top:1px solid var(--border); display:flex; gap:1rem; align-items:flex-end; background:#05080e;}
+.chat-input textarea { flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:8px; padding:0.75rem 1rem; color:#fff; font-family:var(--font-body); resize:none; min-height:80px; outline:none; transition:0.3s; }
+.chat-input textarea:focus { border-color:var(--accent); }
+.chat-input button { width:50px; height:50px; border-radius:8px; background:linear-gradient(135deg, var(--accent), var(--accent2)); border:none; display:flex; align-items:center; justify-content:center; cursor:none; transition:0.3s; }
+.chat-input button:hover { transform:scale(1.05); box-shadow:0 0 15px var(--accent); }
+
+/* Score Bars */
+.score-row { margin-bottom:0.75rem; }
+.score-label { display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-dim); margin-bottom:0.25rem; font-family:var(--font-mono); }
+.progress-bg { width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;}
+.progress-fill { height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition:width 0.5s ease; }
+
+/* Stress Meter */
+.stress-visual { display:flex; align-items:flex-end; gap:2px; height:40px; margin-top:0.5rem; }
+.stress-bar { flex:1; background:var(--accent3); min-height:4px; transition:0.2s; border-radius:2px 2px 0 0; }
+
+/* Alerts / Shake */
+@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);} }
+.shake-active { animation:shake 0.3s ease; }
+.alert-toast { position:fixed; top:100px; left:50%; transform:translateX(-50%); background:rgba(239,68,68,0.9); color:#fff; padding:0.75rem 2rem; border-radius:100px; font-weight:bold; font-size:0.9rem; z-index:999; opacity:0; transition:0.3s; pointer-events:none;}
+.alert-toast.show { opacity:1; }
+
+/* Golden Mode */
+body.golden-mode { --accent:#f59e0b; --accent2:#fbbf24; --accent3:#fef08a; --border:rgba(245,158,11,0.2); }
+body.golden-mode .msg-bubble { background:rgba(245,158,11,0.05); border-color:rgba(245,158,11,0.3); }
+
+/* Utils */
+.flex-col { display:flex; flex-direction:column; gap:1rem; }
+.flex-row { display:flex; gap:1rem; align-items:center; }
+.mt-4 { margin-top:1rem; } .mb-4 { margin-bottom:1rem; }
+
+/* Animations */
+@keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+@keyframes scan { 0%{top:0;} 100%{top:100%;} }
+@keyframes webcam-pulse { 0%,100%{opacity:0.2;} 50%{opacity:0.6;} }
+@keyframes slide-up { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+/* Results */
+#results-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; max-width:1000px; margin:2rem auto; width:100%; }
+.radial-chart-container { width:100%; aspect-ratio:1; max-height: 300px; margin:0 auto; }
+
+@media (max-width: 1024px) {
+  .interview-layout { grid-template-columns:1fr; }
+  .left-panel, .right-panel { display:none; }
+  #results-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-trail"></div>
+<canvas id="bg-canvas"></canvas>
+
+<div class="alert-toast" id="alert-toast">Warning: Too generic. Give example.</div>
+
+<div id="loader">
+  <h1 class="text-gradient" style="font-size:3rem; margin-bottom:1rem;">NEXUS</h1>
+  <div class="text-mono">Initializing AI Core...</div>
+  <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+</div>
+
+<nav>
+  <div class="nav-logo text-gradient">NEXUS</div>
+  <div class="flex-row">
+    <div class="nav-badge">LIVE AI LINK</div>
+    <button class="btn" onclick="showPage('home')" style="padding:0.5rem 1rem; font-size:0.8rem;">Setup</button>
+    <button class="btn" onclick="showPage('dashboard')" style="padding:0.5rem 1rem; font-size:0.8rem;">Dashboard</button>
+  </div>
+</nav>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home" style="align-items:center; justify-content:center; text-align:center;">
+  <div class="text-mono" style="color:var(--accent); margin-bottom:1rem;">AI-POWERED INTERVIEW SIMULATOR</div>
+  <h1 style="font-size:clamp(2.5rem, 5vw, 4rem); max-width:800px; margin-bottom:1rem;">Master your interviews with <span class="text-gradient">ruthless precision.</span></h1>
+  <p style="color:var(--text-dim); margin-bottom:3rem; max-width:600px;">Experience adaptive AI pressure, real-time emotion mapping, and deep semantic analysis.</p>
+
+  <h3 class="text-mono mb-4">SELECT TARGET ROLE</h3>
+  <div class="role-grid">
+    <div class="glass-card role-card selected" onclick="selectRole(this, 'Software Engineer')">
+      <div style="font-size:2rem; margin-bottom:0.5rem;">💻</div>
+      <h3 style="font-size:1.1rem; margin-bottom:0.25rem;">Software Engineer</h3>
+      <div class="text-mono" style="font-size:0.65rem;">System Design & DSA</div>
+    </div>
+    <div class="glass-card role-card" onclick="selectRole(this, 'Product Manager')">
+      <div style="font-size:2rem; margin-bottom:0.5rem;">📊</div>
+      <h3 style="font-size:1.1rem; margin-bottom:0.25rem;">Product Manager</h3>
+      <div class="text-mono" style="font-size:0.65rem;">Strategy & Metrics</div>
+    </div>
+    <div class="glass-card role-card" onclick="selectRole(this, 'UX Designer')">
+      <div style="font-size:2rem; margin-bottom:0.5rem;">🎨</div>
+      <h3 style="font-size:1.1rem; margin-bottom:0.25rem;">UX Designer</h3>
+      <div class="text-mono" style="font-size:0.65rem;">Research & Validation</div>
+    </div>
+  </div>
+
+  <h3 class="text-mono mb-4">INTERVIEWER PERSONALITY</h3>
+  <div class="pill-group">
+    <div class="pill selected" onclick="selectPersona(this, 'Friendly Mentor 😊')">😊 Friendly Mentor</div>
+    <div class="pill" onclick="selectPersona(this, 'Strict HR 😐')">😐 Strict HR</div>
+    <div class="pill" onclick="selectPersona(this, 'Aggressive Recruiter 😈')">😈 Aggressive Recruiter</div>
+    <div class="pill" onclick="selectPersona(this, 'FAANG Interviewer 🧠')">🧠 FAANG Interviewer</div>
+  </div>
+
+  <button class="btn primary" onclick="startInterview()" style="font-size:1.1rem; padding:1rem 3rem;">INITIALIZE SIMULATION</button>
+</div>
+
+<!-- INTERVIEW PAGE -->
+<div class="page" id="page-interview">
+  <div class="interview-layout">
+    
+    <!-- Left Panel -->
+    <div class="left-panel flex-col">
+      <div class="glass-card flex-col" style="align-items:center;">
+        <div style="width:80px; height:80px; background:linear-gradient(135deg, #1e293b, #0f172a); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2.5rem; border:2px solid var(--accent); position:relative;">
+          <span id="ai-avatar-emoji">😊</span>
+          <div style="position:absolute; inset:-4px; border-radius:50%; border:2px solid transparent; border-top-color:var(--accent); animation:spin 4s linear infinite;"></div>
+        </div>
+        <div style="text-align:center;">
+          <h3 id="ai-name" style="margin-bottom:0.2rem;">ALEX</h3>
+          <div class="text-mono" id="ai-role" style="font-size:0.65rem;">FRIENDLY MENTOR</div>
+        </div>
+      </div>
+
+      <div class="webcam">
+        <div class="webcam-pulse"></div>
+        <div class="webcam-scan"></div>
+        <div class="rec-indicator"><div class="dot"></div> LIVE</div>
+        <div style="font-size:3rem; opacity:0.5;">👤</div>
+        <div style="position:absolute; bottom:10px; width:100%; text-align:center; font-family:var(--font-mono); font-size:0.5rem; color:var(--accent3);">EYE TRACKING ACTIVE</div>
+      </div>
+
+      <div class="glass-card">
+        <div class="flex-row" style="justify-content:space-between;">
+          <span class="text-mono">TIMER</span>
+          <span class="text-mono" id="sim-timer" style="font-size:1.2rem; color:var(--accent);">02:00</span>
+        </div>
+        <div class="progress-bg mt-4" style="height:2px;"><div class="progress-fill" id="timer-bar" style="width:100%"></div></div>
+      </div>
+
+      <div class="glass-card">
+        <div class="flex-row" style="justify-content:space-between;">
+          <span class="text-mono">STRESS LEVEL</span>
+          <span style="font-size:0.8rem;">❤️ <span id="bpm-val">72</span> BPM</span>
+        </div>
+        <div class="stress-visual" id="stress-bars"></div>
+      </div>
+    </div>
+
+    <!-- Center Panel -->
+    <div class="chat-container">
+      <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.4);">
+        <div class="text-mono" id="question-tracker">QUESTION 1/3</div>
+        <button class="btn" style="padding:0.25rem 0.75rem; font-size:0.7rem; border-color:var(--danger); color:var(--danger); background:transparent;" onclick="togglePressure()" id="pressure-btn">⚡ PRESSURE MODE</button>
+      </div>
+      
+      <div class="chat-history" id="chat"></div>
+      
+      <div class="chat-input" id="input-area">
+        <textarea id="user-input" placeholder="Type your answer here... (Ctrl+Enter to submit)" onkeydown="if(event.ctrlKey && event.key==='Enter') submitAnswer();"></textarea>
+        <button onclick="submitAnswer()">➤</button>
+      </div>
+      <div style="padding:0.5rem 1.5rem; background:#05080e; font-size:0.7rem; color:var(--text-dim); display:flex; justify-content:space-between;">
+        <span>Ctrl+Enter = Submit | S = Skip</span>
+        <span id="live-typing-meta">WPM: 0 | Words: 0</span>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel flex-col">
+      <div class="glass-card">
+        <h3 class="mb-4" style="font-size:0.9rem; text-transform:uppercase; color:var(--text-dim);">Real-Time Analysis</h3>
+        <div id="live-scores">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="glass-card text-center" style="display:flex; flex-direction:column; align-items:center;">
+        <h3 class="mb-4" style="font-size:0.9rem; text-transform:uppercase; color:var(--text-dim); width:100%; text-align:left;">Emotion Radar</h3>
+        <div style="font-size:2.5rem; margin-bottom:0.5rem; animation:pulse-dot 2s infinite;" id="emotion-icon">🧠</div>
+        <h3 id="emotion-label">Analyzing</h3>
+        <p class="text-mono" style="font-size:0.6rem; margin-top:0.5rem;" id="emotion-desc">AWAITING INPUT</p>
+      </div>
+
+      <div class="glass-card">
+        <h3 class="mb-4" style="font-size:0.9rem; text-transform:uppercase; color:var(--text-dim);">Lie Detector</h3>
+        <div class="score-row">
+          <div class="score-label"><span>Authenticity</span><span id="auth-val">--%</span></div>
+          <div class="progress-bg"><div class="progress-fill" id="auth-bar" style="background:var(--danger); width:0%;"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- RESULTS PAGE -->
+<div class="page" id="page-results">
+  <div style="text-align:center; margin-bottom:3rem;">
+    <div class="text-mono text-gradient" style="font-size:1rem;">SIMULATION COMPLETE</div>
+    <h1 style="font-size:3rem; margin-top:0.5rem;">Performance Report</h1>
+  </div>
+
+  <div class="glass-card" style="max-width:1000px; margin:0 auto; padding:3rem;">
+    <div id="results-grid">
+      <div class="flex-col" style="justify-content:center; align-items:center;">
+        <div class="text-mono" style="font-size:0.8rem; margin-bottom:1rem;">OVERALL HIREABILITY</div>
+        <div style="font-size:6rem; font-family:var(--font-heading); font-weight:800; line-height:1;" class="text-gradient" id="final-score">85</div>
+        <div class="text-mono mt-4">AI DECISION: <span id="hire-decision" style="color:var(--accent3);">STRONG HIRE</span></div>
+      </div>
+      <div>
+        <canvas id="radarChart" class="radial-chart-container"></canvas>
+      </div>
+    </div>
+    
+    <div style="margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border);">
+      <h3 style="margin-bottom:1rem;">Feedback Summary</h3>
+      <p id="feedback-summary" style="color:var(--text-dim); line-height:1.6;"></p>
+      
+      <div class="flex-row" style="margin-top:2rem; justify-content:center;">
+        <button class="btn primary" onclick="showPage('home')">PRACTICE AGAIN</button>
+        <button class="btn" onclick="showPage('dashboard')">VIEW DASHBOARD</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD PAGE -->
+<div class="page" id="page-dashboard">
+  <div style="max-width:1000px; margin:0 auto; width:100%;">
+    <h1 style="font-size:2.5rem; margin-bottom:2rem;">Your Progress Dashboard</h1>
+    
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem; margin-bottom:2rem;">
+      <div class="glass-card text-center">
+        <div class="text-mono">TOTAL INTERVIEWS</div>
+        <div style="font-size:2.5rem; font-family:var(--font-heading); margin-top:0.5rem;" id="dash-total">0</div>
+      </div>
+      <div class="glass-card text-center">
+        <div class="text-mono">AVG SCORE</div>
+        <div style="font-size:2.5rem; font-family:var(--font-heading); margin-top:0.5rem;" class="text-gradient" id="dash-avg">0</div>
+      </div>
+      <div class="glass-card text-center">
+        <div class="text-mono">TOP SKILL</div>
+        <div style="font-size:1.5rem; font-family:var(--font-heading); margin-top:1rem; color:var(--accent3);" id="dash-top">N/A</div>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <h3 class="mb-4 text-mono">SCORE HISTORY</h3>
+      <div style="height:300px; width:100%;">
+        <canvas id="historyChart"></canvas>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:2rem;">
+      <button class="btn primary" onclick="showPage('home')">NEW INTERVIEW</button>
+    </div>
+  </div>
+</div>
+
+<style> @keyframes spin { 100%{transform:rotate(360deg);} } </style>
+<script>
+// Canvas Background
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let cw, ch;
+const particles = [];
+window.addEventListener('resize', initCanvas);
+function initCanvas() {
+  cw = canvas.width = window.innerWidth;
+  ch = canvas.height = window.innerHeight;
+}
+initCanvas();
+for(let i=0; i<50; i++) {
+  particles.push({x: Math.random()*cw, y: Math.random()*ch, vx: Math.random()*1-0.5, vy: Math.random()*1-0.5, s: Math.random()*2+1});
+}
+function drawBg() {
+  ctx.clearRect(0,0,cw,ch);
+  ctx.fillStyle = 'rgba(79,195,247,0.1)';
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if(p.x<0 || p.x>cw) p.vx*=-1;
+    if(p.y<0 || p.y>ch) p.vy*=-1;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill();
+  });
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// Custom Cursor
+const cursor = document.getElementById('cursor');
+const trail = document.getElementById('cursor-trail');
+let mx=0, my=0, tx=0, ty=0;
+document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+function animCursor() {
+  cursor.style.transform = `translate(${mx-6}px, ${my-6}px)`;
+  tx += (mx-tx)*0.2; ty += (my-ty)*0.2;
+  trail.style.transform = `translate(${tx-16}px, ${ ty-16}px)`;
+  requestAnimationFrame(animCursor);
+}
+animCursor();
+
+// State
+let state = {
+  role: 'Software Engineer', persona: 'Friendly Mentor 😊',
+  qIndex: 0, maxQ: 3, pressure: false, timer: 120, interval: null,
+  stressLevel: 20, scores: { Confidence: 50, Leadership: 50, Communication: 50, Technical: 50 },
+  history: JSON.parse(localStorage.getItem('nexus_history') || '[]')
+};
+
+const DB = {
+  'Software Engineer': ["Explain a complex technical decision you made recently.", "How do you handle technical debt while meeting tight deadlines?", "Describe a time you totally failed on a project. What did you learn?"],
+  'Product Manager': ["How do you prioritize features with limited engineering resources?", "Tell me about a product you launched that failed.", "How do you align stakeholders who have conflicting goals?"],
+  'UX Designer': ["Walk me through your design process from zero to handoff.", "How do you balance user needs vs business goals?", "Tell me about a time you defended an unpopular design decision."]
+};
+const Personas = {
+  'Friendly Mentor 😊': {name:'ALEX', title:'FRIENDLY MENTOR', emj:'😊', intro:"Hey there! I'm Alex. Let's have a relaxed chat about your experience."},
+  'Strict HR 😐': {name:'MORGAN', title:'STRICT HR', emj:'😐', intro:"Good morning. I will be conducting your behavioral assessment today."},
+  'Aggressive Recruiter 😈': {name:'VICTOR', title:'AGGRESSIVE RECRUITER', emj:'😈', intro:"I look at 1000 resumes a week. Tell me why I shouldn't skip yours."},
+  'FAANG Interviewer 🧠': {name:'PRIYA', title:'FAANG ENGINEER', emj:'🧠', intro:"Hello. I expect specific, structured answers using the STAR method."}
+};
+
+const strongWords = ['led','built','managed','created','improved','solved','designed','launched','achieved','delivered','reduced','increased','optimized'];
+const weakWords = ['maybe','try','guess','perhaps','not sure','kind of','probably','might','i think'];
+
+// UI Setup
+function showPage(id) { 
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); 
+  document.getElementById('page-'+id).classList.add('active'); 
+  if(id==='dashboard') renderDashboard();
+}
+
+setTimeout(() => {
+  document.getElementById('loader-fill').style.width = '100%';
+  setTimeout(() => {
+    document.getElementById('loader').style.opacity = '0';
+    setTimeout(() => document.getElementById('loader').style.display='none', 800);
+  }, 500);
+}, 1000);
+
+function selectRole(el, role) {
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected'); state.role = role;
+}
+function selectPersona(el, p) {
+  document.querySelectorAll('.pill').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected'); state.persona = p;
+}
+
+// Interview Core
+function startInterview() {
+  state.qIndex = 0; state.pressure = false; state.scores = { Confidence: 50, Leadership: 50, Communication: 50, Technical: 50 };
+  document.body.classList.remove('golden-mode');
+  const p = Personas[state.persona];
+  document.getElementById('ai-avatar-emoji').innerText = p.emj;
+  document.getElementById('ai-name').innerText = p.name;
+  document.getElementById('ai-role').innerText = p.title;
+  document.getElementById('chat').innerHTML = '';
+  document.getElementById('pressure-btn').style.color = '';
+  
+  // init bars
+  const lb = document.getElementById('live-scores'); lb.innerHTML = '';
+  Object.keys(state.scores).forEach(k => {
+    lb.innerHTML += `<div class="score-row"><div class="score-label"><span>${k}</span><span id="sc-${k}">50%</span></div><div class="progress-bg"><div class="progress-fill" id="bar-${k}" style="width:50%"></div></div></div>`;
+  });
+  
+  // init stress
+  const sb = document.getElementById('stress-bars'); sb.innerHTML = '';
+  for(let i=0; i<15; i++) sb.innerHTML += `<div class="stress-bar" id="sb-${i}"></div>`;
+
+  showPage('interview');
+  addMsg('ai', p.intro);
+  setTimeout(nextQuestion, 1500);
+  updateStress();
+}
+
+function togglePressure() {
+  state.pressure = !state.pressure;
+  document.getElementById('pressure-btn').style.color = state.pressure ? '#ef4444' : '';
+  if(state.pressure) document.getElementById('alert-toast').innerText = "PRESSURE MODE ACTIVATED";
+  if(state.pressure) document.getElementById('alert-toast').classList.add('show');
+  setTimeout(() => document.getElementById('alert-toast').classList.remove('show'), 2000);
+}
+
+function nextQuestion() {
+  if(state.qIndex >= state.maxQ) return endInterview();
+  const q = DB[state.role][state.qIndex];
+  document.getElementById('question-tracker').innerText = `QUESTION ${state.qIndex+1}/${state.maxQ}`;
+  addMsg('ai', q);
+  state.qIndex++;
+  
+  state.timer = state.pressure ? 60 : 120;
+  clearInterval(state.interval);
+  state.interval = setInterval(() => {
+    state.timer--;
+    let mins = Math.floor(state.timer/60); let secs = state.timer%60;
+    document.getElementById('sim-timer').innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+    document.getElementById('timer-bar').style.width = (state.timer / (state.pressure?60:120) * 100) + '%';
+    if(state.timer <= 20) {
+      document.querySelector('.interview-layout').classList.add('shake-active');
+      setTimeout(()=>document.querySelector('.interview-layout').classList.remove('shake-active'), 300);
+      state.stressLevel = Math.min(100, state.stressLevel + 5);
+    }
+    if(state.timer <= 0) { clearInterval(state.interval); submitAnswer(); }
+  }, 1000);
+}
+
+function submitAnswer() {
+  const inp = document.getElementById('user-input');
+  const text = inp.value.trim();
+  if(!text && state.timer > 0) return;
+  
+  clearInterval(state.interval);
+  inp.value = '';
+  if(text) addMsg('user', text);
+  analyzeAnswer(text);
+  
+  setTimeout(nextQuestion, 2000);
+}
+
+function analyzeAnswer(txt) {
+  const words = txt.toLowerCase().split(/\s+/).filter(Boolean).length;
+  let sCount = 0; let wCount = 0;
+  strongWords.forEach(w => { if(txt.toLowerCase().includes(w)) sCount++; });
+  weakWords.forEach(w => { if(txt.toLowerCase().includes(w)) wCount++; });
+  
+  // Logic
+  const confDelta = sCount*10 - wCount*15;
+  const techDelta = (txt.length>100?10:0) + sCount*5;
+  
+  state.scores.Confidence = Math.max(0, Math.min(100, state.scores.Confidence + confDelta));
+  state.scores.Communication = Math.max(0, Math.min(100, state.scores.Communication + (words>20?10:-10) - wCount*5));
+  state.scores.Technical = Math.max(0, Math.min(100, state.scores.Technical + techDelta));
+  state.scores.Leadership = Math.max(0, Math.min(100, state.scores.Leadership + sCount*10));
+  
+  const auth = Math.max(0, 100 - wCount*20 + (txt.includes('I')?10:0));
+  document.getElementById('auth-val').innerText = auth + '%';
+  document.getElementById('auth-bar').style.width = auth + '%';
+  document.getElementById('auth-bar').style.background = auth<50 ? 'var(--danger)' : 'var(--accent3)';
+
+  // Emotion
+  let em = {i:'🧠', l:'Analyzing', d:'Processing...', class:''};
+  if(wCount > 2 || words < 10) em = {i:'😰', l:'Nervous', d:'High hesitation detected.'};
+  else if(sCount > 2) em = {i:'😎', l:'Confident', d:'Strong semantic profile.'};
+  else if(state.pressure) em = {i:'😓', l:'Stressed', d:'Pressure mode affecting delivery.'};
+  
+  document.getElementById('emotion-icon').innerText = em.i;
+  document.getElementById('emotion-label').innerText = em.l;
+  document.getElementById('emotion-desc').innerText = em.d;
+
+  // Shake check
+  if(wCount > 2 || words < 15) {
+    document.querySelector('.interview-layout').classList.add('shake-active');
+    setTimeout(()=>document.querySelector('.interview-layout').classList.remove('shake-active'), 300);
+    const toast = document.getElementById('alert-toast');
+    toast.innerText = "WARNING: Answer too generic or short!";
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 2000);
+    addMsg('ai', "That was quite brief. In a real interview, you need to provide specific examples.");
+  } else {
+    // Acknowledge
+    const replies = ["Good specific examples.", "I see, that makes sense.", "Interesting approach."];
+    addMsg('ai', replies[Math.floor(Math.random()*replies.length)]);
+  }
+
+  // Update UI Stats
+  Object.keys(state.scores).forEach(k => {
+    document.getElementById(`sc-${k}`).innerText = state.scores[k] + '%';
+    document.getElementById(`bar-${k}`).style.width = state.scores[k] + '%';
+  });
+
+  // Golden
+  const avg = Object.values(state.scores).reduce((a,b)=>a+b)/4;
+  if(avg > 85) document.body.classList.add('golden-mode');
+  else document.body.classList.remove('golden-mode');
+}
+
+function addMsg(role, txt) {
+  const box = document.getElementById('chat');
+  const emj = role==='ai' ? Personas[state.persona].emj : '👤';
+  box.innerHTML += `<div class="chat-msg ${role}"><div class="avatar-sm">${emj}</div><div class="msg-bubble">${txt}</div></div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+function updateStress() {
+  state.stressLevel = state.pressure ? Math.min(100, state.stressLevel+2) : Math.max(20, state.stressLevel-1);
+  document.getElementById('bpm-val').innerText = 60 + Math.floor(state.stressLevel*0.6);
+  for(let i=0; i<15; i++) {
+    const el = document.getElementById('sb-'+i);
+    if(el) {
+      if(i < state.stressLevel/100*15) {
+        el.style.height = (10 + Math.random()*20) + 'px';
+        el.style.background = state.stressLevel > 75 ? 'var(--danger)' : (state.stressLevel > 50 ? 'var(--gold)' : 'var(--accent3)');
+      } else {
+        el.style.height = '4px'; el.style.background = 'rgba(255,255,255,0.1)';
+      }
+    }
+  }
+  if(document.getElementById('page-interview').classList.contains('active')) requestAnimationFrame(() => setTimeout(updateStress, 500));
+}
+
+// TextInput monitoring
+document.getElementById('user-input').addEventListener('input', (e) => {
+  const w = e.target.value.split(/\s+/).filter(Boolean).length;
+  document.getElementById('live-typing-meta').innerText = `Typing... | Words: ${w}`;
+});
+document.addEventListener('keydown', e => { if(e.key === 'r' && e.altKey) startInterview(); });
+
+// Results + Chart
+let rChart, hChart;
+function endInterview() {
+  const avg = Math.floor(Object.values(state.scores).reduce((a,b)=>a+b)/4);
+  state.history.push({date: new Date().toLocaleDateString(), score: avg, role: state.role});
+  localStorage.setItem('nexus_history', JSON.stringify(state.history));
+  
+  document.getElementById('final-score').innerText = avg;
+  document.getElementById('hire-decision').innerText = avg > 80 ? 'STRONG HIRE' : (avg > 60 ? 'PROBABLE HIRE' : 'NO HIRE');
+  document.getElementById('hire-decision').style.color = avg > 80 ? 'var(--accent3)' : (avg > 60 ? 'var(--gold)' : 'var(--danger)');
+  
+  document.getElementById('feedback-summary').innerText = avg > 80 ? "Outstanding performance. Your semantic structuring is exact, your emotional resonance is stable, and you demonstrated clear technical depth." : "You need more practice. Try incorporating the STAR method (Situation, Task, Action, Result) and eliminate hedge words like 'maybe' or 'I think'.";
+  
+  showPage('results');
+  
+  const ctxR = document.getElementById('radarChart').getContext('2d');
+  if(rChart) rChart.destroy();
+  Chart.defaults.color = 'rgba(255,255,255,0.7)';
+  Chart.defaults.font.family = "'Space Mono', monospace";
+  rChart = new Chart(ctxR, {
+    type: 'radar',
+    data: {
+      labels: Object.keys(state.scores),
+      datasets: [{
+        label: 'Skill Profile',
+        data: Object.values(state.scores),
+        backgroundColor: 'rgba(79,195,247,0.2)', borderColor: '#4fc3f7',
+        pointBackgroundColor: '#a78bfa', borderWidth: 2
+      }]
+    },
+    options: { scales:{r:{angleLines:{color:'rgba(255,255,255,0.1)'},grid:{color:'rgba(255,255,255,0.1)'},pointLabels:{color:'#e2e8f0'},ticks:{display:false,min:0,max:100}} }, plugins:{legend:{display:false}} }
+  });
+}
+
+function renderDashboard() {
+  const hist = state.history;
+  document.getElementById('dash-total').innerText = hist.length;
+  document.getElementById('dash-avg').innerText = hist.length ? Math.floor(hist.reduce((a,b)=>a+b.score,0)/hist.length) : 0;
+  
+  if(hChart) hChart.destroy();
+  const ctxH = document.getElementById('historyChart').getContext('2d');
+  hChart = new Chart(ctxH, {
+    type: 'line',
+    data: {
+      labels: hist.map((h,i) => `Sim ${i+1}`),
+      datasets: [{
+        label: 'Overall Score', data: hist.map(h=>h.score),
+        borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.4
+      }]
+    },
+    options: { maintainAspectRatio: false, scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}} }
+  });
+}
+</script>
+</body>
+</html>
